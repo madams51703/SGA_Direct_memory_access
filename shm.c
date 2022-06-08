@@ -11,14 +11,17 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
+#include "oratypes.h"
 
 #define errExit(msg)    do { perror(msg); exit(EXIT_FAILURE); \
                                    } while (0)
 
 struct shmid_ds shm_info;
 char * name_lookup=NULL;
+char * type_lookup=NULL;
 const char *filepath = NULL;
 int fixed_area_shmid;
+int debug=0;
 typedef struct ksmfsv_struct 
 { 
 	char * full_text;
@@ -31,6 +34,7 @@ typedef struct ksmfsv_struct
 
 ksmfsv_struct ksmfsv[40000] ;
 void parse_args(int argc, char * argv[] );
+void print_ksmfsv( ksmfsv_struct ksmfsv);
 
 
 void parse_args(int argc, char * argv[] )
@@ -52,7 +56,7 @@ void parse_args(int argc, char * argv[] )
             {0,         0,                 0,  0 }
         };
 
-       c = getopt_long(argc, argv, "f:n:s:",
+       c = getopt_long(argc, argv, "df:n:s:t:",
                  long_options, &option_index);
         if (c == -1)
             break;
@@ -68,12 +72,20 @@ void parse_args(int argc, char * argv[] )
 		name_lookup = strdup(optarg);
             	break;
 
+       case 't':
+		type_lookup = strdup(optarg);
+            	break;
+
+	case 'd':
+		debug=1;
+		break;
+
        case 's':
 		fixed_area_shmid = atoi(optarg);
 		fixed_area_addr = shmat(fixed_area_shmid, fixed_area_addr, SHM_RDONLY);
 		shmctl(fixed_area_shmid,IPC_STAT,&shm_info);
 
-		printf("memory size:%d\n",shm_info.shm_segsz); 
+//		printf("memory size:%d\n",shm_info.shm_segsz); 
                if (fixed_area_addr == (void *) -1)
                    errExit("shmat");
             	break;
@@ -99,6 +111,7 @@ void parse_args(int argc, char * argv[] )
 int main(int argc, char *argv[]){
 int i;
 char ** throw_away;
+ksmfsv_struct ksmfsv[40000] ;
 char * ksmfsv_ptr;
 int ksmfsv_count=0;
 char * token;
@@ -164,35 +177,23 @@ char * sub_token;
 	{
 		if ( (name_lookup != NULL) &&strcmp(name_lookup,ksmfsv[i].ksmfsnam) == 0 )
 		{
-			printf("Found %s, addr: %p, type:%s, size:%d \n",ksmfsv[i].ksmfsnam,ksmfsv[i].ksmfsadr,ksmfsv[i].ksmfstyp,ksmfsv[i].ksmfssiz);
-			if (strcmp(ksmfsv[i].ksmfstyp,"oratext *") == 0 )
-			{
-				printf("Value:%s\n", (char*) ksmfsv[i].ksmfsadr );
-			}
 
-			if (strcmp(ksmfsv[i].ksmfstyp,"ub4") == 0 )
-			{
-				printf("Value:%u\n", *(unsigned int *) ksmfsv[i].ksmfsadr );
-			}
-
-			if (strcmp(ksmfsv[i].ksmfstyp,"sword") == 0 )
-			{
-				printf("Value:%d\n", *(signed int *) ksmfsv[i].ksmfsadr );
-			}
-
-			if (strcmp(ksmfsv[i].ksmfstyp,"ub1") == 0 )
-			{
-				printf("Value:%u\n", *(unsigned char *) ksmfsv[i].ksmfsadr );
-			}
-
-			if (strcmp(ksmfsv[i].ksmfstyp,"sb1") == 0 )
-			{
-				printf("Value:%d\n", *(signed char *) ksmfsv[i].ksmfsadr );
-			}
-
+			print_ksmfsv(ksmfsv[i]);
 
 		}
 	}
+
+
+	for ( i=0 ; i <ksmfsv_count ; i++)
+	{
+		if ( (type_lookup != NULL) &&strcmp(type_lookup,ksmfsv[i].ksmfstyp) == 0 )
+		{
+
+			print_ksmfsv(ksmfsv[i]);
+
+		}
+	}
+
 /*
     ssize_t n = write(1,ptr,statbuf.st_size);
     if(n != statbuf.st_size){
@@ -209,3 +210,62 @@ char * sub_token;
     return 0;
 }
 
+void print_ksmfsv( ksmfsv_struct ksmfsv)
+{
+	if ( debug == 1 )
+	{
+	
+		printf("Found %s, addr: %p, type:%s, size:%d ",ksmfsv.ksmfsnam,ksmfsv.ksmfsadr,ksmfsv.ksmfstyp,ksmfsv.ksmfssiz);
+
+
+	}
+	else
+	{
+		printf("Found %s ",ksmfsv.ksmfsnam);
+
+	}
+			
+	if (strcmp(ksmfsv.ksmfstyp,"oratext *") == 0 )
+	{
+		printf("Value:%s\n", (char*) ksmfsv.ksmfsadr );
+	}
+
+	else if (strcmp(ksmfsv.ksmfstyp,"ub4") == 0 )
+	{
+		printf("Value:%u\n", * (ub4 *) ksmfsv.ksmfsadr );
+	}
+
+	else if (strcmp(ksmfsv.ksmfstyp,"sword") == 0 )
+	{
+		printf("Value:%d\n", *(sword *) ksmfsv.ksmfsadr );
+	}
+
+	else if (strcmp(ksmfsv.ksmfstyp,"ub1") == 0 )
+	{
+		printf("Value:%u\n", *(ub1 *) ksmfsv.ksmfsadr );
+	}
+
+	else if (strcmp(ksmfsv.ksmfstyp,"sb1") == 0 )
+	{
+		printf("Value:%d\n", *(sb1 *) ksmfsv.ksmfsadr );
+	}
+		
+	else if (strcmp(ksmfsv.ksmfstyp,"uword") == 0 )
+	{
+		printf("Value:%u\n", *(uword *) ksmfsv.ksmfsadr );
+	}
+		
+	else if (strcmp(ksmfsv.ksmfstyp,"word") == 0 )
+	{
+		printf("Value:%d\n", *(int *) ksmfsv.ksmfsadr );
+	}
+		
+		
+	else 
+	{
+
+		printf("Undefined\n");
+	}
+
+
+}
